@@ -3,5 +3,5 @@
 version = 3
 
 [[package]]
-name = "FormalisNyelvek"
+name = "formalis_nyelvek"
 version = "0.1.0"
