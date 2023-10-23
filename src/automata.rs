@@ -46,105 +46,112 @@ impl DeterministicFinalAutomata {
     }
 
     pub fn minimize(&mut self) {
-        // Creating equivalence classes
-        let mut equivalence_classes: Vec<Vec<String>> = Vec::new();
-
-        // Initializing equivalence classes
-        let final_states: Vec<String> = self.states.clone();
-        let non_final_states: Vec<String> = self.states.iter()
-            .filter(|&state| !final_states.contains(state))
-            .cloned()
-            .collect();
-        equivalence_classes.push(final_states);
-        equivalence_classes.push(non_final_states);
-
-        // Refining equivalence classes
-        let mut equivalence_classes_changed: bool = true;
-        while equivalence_classes_changed {
-            equivalence_classes_changed = false;
-            let mut new_equivalence_classes: Vec<Vec<String>> = Vec::new();
-            for equivalence_class in &equivalence_classes {
-                let mut new_equivalence_class: Vec<String> = Vec::new();
-                let mut equivalence_class_changed: bool = true;
-                while equivalence_class_changed {
-                    equivalence_class_changed = false;
-                    for state in equivalence_class.iter() { // Use .iter() to get a reference
-                        let mut is_new_state = true;
-                        for new_state in &new_equivalence_class {
-                            if self.are_equivalent(state, new_state, &equivalence_classes) {
-                                is_new_state = false;
-                                break;
-                            }
-                        }
-                        if is_new_state {
-                            new_equivalence_class.push(state.clone());
-                            equivalence_class_changed = true;
-                            equivalence_classes_changed = true;
-                        }
-                    }
-                }
-                new_equivalence_classes.push(new_equivalence_class);
-            }
-            equivalence_classes = new_equivalence_classes;
-        }
-
-        // Minimize the transitions
-        let mut new_transitions: Vec<(String, String, String)> = Vec::new();
-        for equivalence_class in equivalence_classes {
-            let new_from_state: String = equivalence_class[0].clone();
-            for state in &equivalence_class {
-                for (from_state, symbols, to_state) in &self.transitions {
-                    if from_state == state {
-                        new_transitions.push((new_from_state.clone(), symbols.clone(), to_state.clone()));
-                    }
+        // Step 1: Mark equivalent state pairs (p, q) where p ∈ F and q ∉ F, or vice versa
+        let mut equivalent_pairs: Vec<(String, String)> = Vec::new();
+        for i in 0..self.states.len() {
+            for j in (i + 1)..self.states.len() {
+                let state1 = &self.states[i];
+                let state2 = &self.states[j];
+                if (self.final_states.contains(state1) && !self.final_states.contains(state2))
+                    || (!self.final_states.contains(state1) && self.final_states.contains(state2))
+                {
+                    equivalent_pairs.push((state1.clone(), state2.clone()));
                 }
             }
         }
 
-        // Update start and final states
-        let mut new_start_state: String = self.start_state.clone();
-        let mut new_final_states: Vec<String> = Vec::new();
-        for equivalence_class in equivalence_classes {
-            for state in &equivalence_class {
-                if state == &self.start_state {
-                    new_start_state = equivalence_class[0].clone();
-                }
-                for final_state in &self.final_states {
-                    if state == final_state {
-                        new_final_states.push(equivalence_class[0].clone());
+        // Step 2: Initialize empty lists for each equivalent pair
+        let mut equivalent_lists: Vec<Vec<(String, String)>> = vec![vec![]; equivalent_pairs.len()];
+
+        // Step 3: Process transitions for equivalent pairs
+        for i in 0..equivalent_pairs.len() {
+            for symbol in &self.alphabet {
+                let (state1, state2) = (&equivalent_pairs[i].0, &equivalent_pairs[i].1);
+
+                // Get transitions for state1 and state2 for the current symbol
+                let transition1 = self.get_state_transitions(state1, symbol);
+                let transition2 = self.get_state_transitions(state2, symbol);
+
+                let mut found = false;
+
+                for j in 0..equivalent_pairs.len() {
+                    // Compare transitions for state1 and state2 with equivalent_pairs[j]
+                    if transition1 == self.get_state_transitions(&equivalent_pairs[j].0, symbol)
+                        && transition2 == self.get_state_transitions(&equivalent_pairs[j].1, symbol)
+                    {
+                        equivalent_lists[j].push((state1.clone(), state2.clone()));
+                        found = true;
+                        break;
                     }
+                }
+
+                if !found {
+                    // If no equivalent pair was found, mark the pair itself as equivalent
+                    equivalent_lists[i].push((state1.clone(), state2.clone()));
                 }
             }
         }
 
-        // Remove redundant states
-        let mut new_states: Vec<String> = Vec::new();
-        for equivalence_class in equivalence_classes {
-            new_states.push(equivalence_class[0].clone());
-        }
 
-        // Update the automata
-        self.states = new_states;
-        self.start_state = new_start_state;
-        self.final_states = new_final_states;
-        self.transitions = new_transitions;
+        // Step 4: Merge equivalent pairs
+        for i in 0..equivalent_pairs.len() {
+            if equivalent_lists[i].is_empty() {
+                // These pairs are equivalent, so merge them.
+                let (state1, state2) = (&equivalent_pairs[i].0, &equivalent_pairs[i].1);
+                self.merge_states(state1, state2);
+            }
+        }
     }
 
+    fn merge_states(&mut self, state1: &str, state2: &str) {
+        // Remove state2 from the list of states
+        self.states.retain(|state| state != state2);
+
+        // Remove state2 from the list of final states
+        self.final_states.retain(|state| state != state2);
+
+        // Update transitions to use state1 instead of state2
+        let updated_transitions: Vec<(String, String, String)> = self
+            .transitions
+            .iter()
+            .map(|(from_state, symbol, to_state)| {
+                if to_state == state2 {
+                    (from_state.clone(), symbol.clone(), state1.to_string())
+                } else {
+                    (from_state.clone(), symbol.clone(), to_state.clone())
+                }
+            })
+            .collect();
+        self.transitions = updated_transitions;
+
+        // Update start state if it was state2
+        if self.start_state == state2 {
+            self.start_state = state1.to_string();
+        }
+    }
+
+
     // A function to check if two states are equivalent based on your criteria
-    fn are_equivalent(&self, state1: &str, state2: &str, equivalence_classes: &Vec<Vec<String>>) -> bool {
-        // Get transitions for state1 and state2
-        let transitions1 = self.get_state_transitions(state1);
-        let transitions2 = self.get_state_transitions(state2);
+    fn are_equivalent(
+        &self,
+        state1: &str,
+        state2: &str,
+        symbol: &str,
+        equivalence_classes: &Vec<Vec<String>>,
+    ) -> bool {
+        // Get transitions for state1 and state2 for the current symbol
+        let transitions1 = self.get_state_transitions(state1, symbol);
+        let transitions2 = self.get_state_transitions(state2, symbol);
 
         // Compare transitions
         transitions1 == transitions2
     }
 
-    fn get_state_transitions(&self, state: &str) -> Vec<(String, String, String)> {
-        // Find and return transitions for the given state
+    fn get_state_transitions(&self, state: &str, symbol: &str) -> Vec<(String, String, String)> {
+        // Find and return transitions for the given state and symbol
         self.transitions
             .iter()
-            .filter(|(from_state, _, _)| from_state == state)
+            .filter(|(from_state, sym, _)| from_state == state && sym == symbol)
             .cloned()
             .collect()
     }
