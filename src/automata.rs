@@ -46,44 +46,28 @@ impl DeterministicFinalAutomata {
     }
 
     pub fn minimize(&mut self) {
-        // Step 1: Mark equivalent state pairs (p, q) where p ∈ F and q ∉ F, or vice versa
-        let mut equivalent_pairs: Vec<(String, String)> = Vec::new();
-        for i in 0..self.states.len() {
+        // Step 1: Mark distinguishable state pairs (p, q) where p ∈ F and q ∉ F, or vice versa
+        let mut distinguishable_pairs: Vec<(String, String)> = Vec::new();
+        for i in 0..(self.states.len()-1) {
             for j in (i + 1)..self.states.len() {
                 let state1 = &self.states[i];
                 let state2 = &self.states[j];
-                if (self.final_states.contains(state1) && !self.final_states.contains(state2))
-                    || (!self.final_states.contains(state1) && self.final_states.contains(state2))
-                {
-                    equivalent_pairs.push((state1.clone(), state2.clone()));
+                // XOR for compactness - true if one of the states is final and the other is not
+                if self.final_states.contains(state1) ^ self.final_states.contains(state2) {
+                    distinguishable_pairs.push((state1.clone(), state2.clone()));
                 }
             }
         }
 
-        // Step 2: Initialize empty lists for each equivalent pair
-        let mut equivalent_lists: Vec<Vec<(String, String)>> = vec![vec![]; equivalent_pairs.len()];
+        // Step 2: Iterate through all state pairs and mark distinguishable pairs
+        // For each state pair, there are symbols that they can transition on.
+        // Using the symbol, we can get the destination states for each state pair.
+        // If they are marked as distinguishable, then the original state pair (the source state pair) should also be marked distinguishable.
+        // However, the state of being "distinguishable" should be propagated backwards.
+        // This is why the algorithm should repeat until no more pairs can be marked as distinguishable.
 
-        // Step 3: Process transitions for equivalent pairs
-        for i in 0..equivalent_pairs.len() {
-            let (state1, state2) = (&equivalent_pairs[i].0, &equivalent_pairs[i].1);
-
-            for symbol in &self.alphabet {
-                let are_eq = self.are_equivalent(state1, state2, symbol, &equivalent_lists);
-
-                if are_eq {
-                    equivalent_lists[i].push((state1.clone(), state2.clone()));
-                }
-            }
-        }
-
-        // Step 4: Merge equivalent pairs
-        for i in 0..equivalent_pairs.len() {
-            if equivalent_lists[i].is_empty() {
-                // These pairs are equivalent, so merge them.
-                let (state1, state2) = (&equivalent_pairs[i].0, &equivalent_pairs[i].1);
-                self.merge_states(state1, state2);
-            }
-        }
+        // Step 3. Merge all state pairs that are NOT distinguishable.
+        // Use the merge_states function, as it should work properly.
     }
 
 
@@ -99,7 +83,13 @@ impl DeterministicFinalAutomata {
             .transitions
             .iter()
             .map(|(from_state, symbol, to_state)| {
-                if to_state == state2 {
+                // If A == B, then there are 3 cases which need to be accounted for:
+                // B->C then B becomes A
+                // C->B then B becomes A
+                // A->C then A doesn't change
+                if from_state == state2 {
+                    (state1.to_string(), symbol.clone(), to_state.clone())
+                } else if to_state == state2 {
                     (from_state.clone(), symbol.clone(), state1.to_string())
                 } else {
                     (from_state.clone(), symbol.clone(), to_state.clone())
@@ -116,30 +106,30 @@ impl DeterministicFinalAutomata {
 
 
     // A function to check if two states are equivalent based on your criteria
-    fn are_equivalent(
-        &self,
-        state1: &str,
-        state2: &str,
-        symbol: &str,
-        _equivalence_classes: &Vec<Vec<(String, String)>>
-    ) -> bool {
-        // Get transitions for state1 and state2 for the current symbol
-        let transitions1 = self.get_state_transitions(state1, symbol);
-        let transitions2 = self.get_state_transitions(state2, symbol);
+    // fn are_equivalent(
+    //     &self,
+    //     state1: &str,
+    //     state2: &str,
+    //     symbol: &str,
+    //     _equivalence_classes: &Vec<Vec<(String, String)>>
+    // ) -> bool {
+    //     // Get transitions for state1 and state2 for the current symbol
+    //     let transitions1 = self.get_state_transitions(state1, symbol);
+    //     let transitions2 = self.get_state_transitions(state2, symbol);
 
-        // Extract the destination states from transitions
-        let destinations1: Vec<String> = transitions1.iter().map(|(_, _, to)| to.clone()).collect();
-        let destinations2: Vec<String> = transitions2.iter().map(|(_, _, to)| to.clone()).collect();
+    //     // Extract the destination states from transitions
+    //     let destinations1: Vec<String> = transitions1.iter().map(|(_, _, to)| to.clone()).collect();
+    //     let destinations2: Vec<String> = transitions2.iter().map(|(_, _, to)| to.clone()).collect();
 
-        // Sort and compare the destination states
-        let mut sorted_destinations1 = destinations1.clone();
-        let mut sorted_destinations2 = destinations2.clone();
+    //     // Sort and compare the destination states
+    //     let mut sorted_destinations1 = destinations1.clone();
+    //     let mut sorted_destinations2 = destinations2.clone();
 
-        sorted_destinations1.sort();
-        sorted_destinations2.sort();
+    //     sorted_destinations1.sort();
+    //     sorted_destinations2.sort();
 
-        sorted_destinations1 == sorted_destinations2
-    }
+    //     sorted_destinations1 == sorted_destinations2
+    // }
 
     fn get_state_transitions(&self, state: &str, symbol: &str) -> Vec<(String, String, String)> {
         // Find and return transitions for the given state and symbol
