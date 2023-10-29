@@ -47,6 +47,7 @@ impl DeterministicFinalAutomata {
 
     pub fn minimize(&mut self) {
         // Step 1: Mark distinguishable state pairs (p, q) where p ∈ F and q ∉ F, or vice versa
+        println!("Working on step 1...");
         let mut distinguishable_pairs: Vec<(String, String)> = Vec::new();
         for i in 0..(self.states.len() - 1) {
             for j in (i + 1)..self.states.len() {
@@ -65,6 +66,7 @@ impl DeterministicFinalAutomata {
         // If they are marked as distinguishable, then the original state pair (the source state pair) should also be marked distinguishable.
         // However, the state of being "distinguishable" should be propagated backwards.
         // This is why the algorithm should repeat until no more pairs can be marked as distinguishable.
+        println!("Working on step 2...");
         let mut changed = true;
         while changed {
             changed = false;
@@ -113,6 +115,7 @@ impl DeterministicFinalAutomata {
 
         // Step 3. Merge all state pairs that are NOT distinguishable.
         // Use the merge_states function, as it should work properly.
+        println!("Working on step 3...");
         let mut equivalent_classes: Vec<Vec<String>> = vec![vec![]];
         for state in &self.states {
             let mut added = false;
@@ -130,6 +133,7 @@ impl DeterministicFinalAutomata {
             }
         }
 
+        println!("Merge states...");
         for class in equivalent_classes.iter() {
             if class.len() > 1 {
                 for i in 1..class.len() {
