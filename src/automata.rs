@@ -48,7 +48,7 @@ impl DeterministicFinalAutomata {
     pub fn minimize(&mut self) {
         // Step 1: Mark distinguishable state pairs (p, q) where p ∈ F and q ∉ F, or vice versa
         let mut distinguishable_pairs: Vec<(String, String)> = Vec::new();
-        for i in 0..(self.states.len()-1) {
+        for i in 0..(self.states.len() - 1) {
             for j in (i + 1)..self.states.len() {
                 let state1 = &self.states[i];
                 let state2 = &self.states[j];
@@ -65,9 +65,78 @@ impl DeterministicFinalAutomata {
         // If they are marked as distinguishable, then the original state pair (the source state pair) should also be marked distinguishable.
         // However, the state of being "distinguishable" should be propagated backwards.
         // This is why the algorithm should repeat until no more pairs can be marked as distinguishable.
+        let mut changed = true;
+        while changed {
+            changed = false;
+            for i in 0..(self.states.len() - 1) {
+                for j in (i + 1)..self.states.len() {
+                    let state1 = &self.states[i];
+                    let state2 = &self.states[j];
+                    for symbol in &self.alphabet {
+                        let transitions1 = self.get_state_transitions(state1, symbol);
+                        let transitions2 = self.get_state_transitions(state2, symbol);
+
+                        // Extract the destination states from transitions
+                        let destinations1: Vec<String> = transitions1
+                            .iter()
+                            .map(|(_, _, to)| to.clone())
+                            .collect();
+                        let destinations2: Vec<String> = transitions2
+                            .iter()
+                            .map(|(_, _, to)| to.clone())
+                            .collect();
+
+                        // Sort and compare the destination states
+                        let mut sorted_destinations1 = destinations1.clone();
+                        let mut sorted_destinations2 = destinations2.clone();
+
+                        sorted_destinations1.sort();
+                        sorted_destinations2.sort();
+
+                        if sorted_destinations1 != sorted_destinations2 {
+                            // If the destination states are different, then the state pair is distinguishable
+                            if !distinguishable_pairs.contains(&(state1.clone(), state2.clone())) {
+                                distinguishable_pairs.push((state1.clone(), state2.clone()));
+                                changed = true;
+                            }
+                        } else {
+                            // If the destination states are the same, then the state pair is not distinguishable
+                            if distinguishable_pairs.contains(&(state1.clone(), state2.clone())) {
+                                distinguishable_pairs.retain(|pair| pair != &(state1.clone(), state2.clone()));
+                                changed = true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         // Step 3. Merge all state pairs that are NOT distinguishable.
         // Use the merge_states function, as it should work properly.
+        let mut equivalent_classes: Vec<Vec<String>> = vec![vec![]];
+        for state in &self.states {
+            let mut added = false;
+            for class in equivalent_classes.iter_mut() {
+                if class.is_empty()
+                    || !distinguishable_pairs.contains(&(class[0].clone(), state.clone()))
+                {
+                    class.push(state.clone());
+                    added = true;
+                    break;
+                }
+            }
+            if !added {
+                equivalent_classes.push(vec![state.clone()]);
+            }
+        }
+
+        for class in equivalent_classes.iter() {
+            if class.len() > 1 {
+                for i in 1..class.len() {
+                    self.merge_states(&class[0], &class[i]);
+                }
+            }
+        }
     }
 
 
@@ -103,33 +172,6 @@ impl DeterministicFinalAutomata {
             self.start_state = state1.to_string();
         }
     }
-
-
-    // A function to check if two states are equivalent based on your criteria
-    // fn are_equivalent(
-    //     &self,
-    //     state1: &str,
-    //     state2: &str,
-    //     symbol: &str,
-    //     _equivalence_classes: &Vec<Vec<(String, String)>>
-    // ) -> bool {
-    //     // Get transitions for state1 and state2 for the current symbol
-    //     let transitions1 = self.get_state_transitions(state1, symbol);
-    //     let transitions2 = self.get_state_transitions(state2, symbol);
-
-    //     // Extract the destination states from transitions
-    //     let destinations1: Vec<String> = transitions1.iter().map(|(_, _, to)| to.clone()).collect();
-    //     let destinations2: Vec<String> = transitions2.iter().map(|(_, _, to)| to.clone()).collect();
-
-    //     // Sort and compare the destination states
-    //     let mut sorted_destinations1 = destinations1.clone();
-    //     let mut sorted_destinations2 = destinations2.clone();
-
-    //     sorted_destinations1.sort();
-    //     sorted_destinations2.sort();
-
-    //     sorted_destinations1 == sorted_destinations2
-    // }
 
     fn get_state_transitions(&self, state: &str, symbol: &str) -> Vec<(String, String, String)> {
         // Find and return transitions for the given state and symbol
