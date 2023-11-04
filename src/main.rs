@@ -13,10 +13,12 @@ fn test_minimization_algorithm() {
     // Printing the dfa
     automata.print_automata();
 
+    println!();
     println!("Minimizing the dfa...");
     // Minimizing the dfa
     automata.minimize();
 
+    println!();
     // Printing the minimized dfa
     automata.print_automata();
 }
