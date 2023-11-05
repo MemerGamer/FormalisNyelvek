@@ -1,5 +1,5 @@
 use std::fs::File;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::io::{BufRead, BufReader};
 
 pub struct DeterministicFinalAutomata {
@@ -71,8 +71,12 @@ impl DeterministicFinalAutomata {
         // This is why the algorithm should repeat until no more pairs can be marked as distinguishable.
         println!("Working on step 2...");
         let mut changed = true;
+        let mut non_distinguishable_final: HashSet<(String, String)> = HashSet::new();
+
         while changed {
             changed = false;
+            let mut non_distinguishable: HashSet<(String, String)> = HashSet::new();
+
             for i in 0..(self.states.len() - 1) {
                 for j in (i + 1)..self.states.len() {
                     let state1 = &self.states[i];
@@ -90,68 +94,83 @@ impl DeterministicFinalAutomata {
                             distinguishable_pairs.push(current_state);
                             distinguishable_pairs.push((state2.clone(), state1.clone()));
                             changed = true;
+                        } else if !distinguishable_pairs.contains(&current_state) {
+                            // If the destination states are the same, then the state pair is NOT distinguishable
+                            non_distinguishable.insert(current_state);
                         }
                     }
                 }
             }
+            non_distinguishable_final = non_distinguishable;
         }
 
         // Step 3. Merge all state pairs that are NOT distinguishable.
         // Use the merge_states function, as it should work properly.
         println!("Working on step 3...");
 
-        for i in 0..(self.states.len() - 1) {
-            let mut j = i + 1;
+        // Create data structures for the new DFA
+        let mut new_states: HashSet<String> = HashSet::new();
+        let mut state_mapping: HashMap<String, String> = HashMap::new();
+        let mut new_transitions: HashSet<(String, String, String)> = HashSet::new();
+        let mut new_final_states: HashSet<String> = HashSet::new();
+        let mut new_start_state: String = String::new();
 
-            while j < self.states.len() {
-                let state1 = &self.states[i];
-                let state2 = &self.states[j];
+        // Create a sorted list of non-distinguishable state pairs
+        let mut non_distinguishable_sorted: Vec<(String, String)> = non_distinguishable_final.iter().cloned().collect();
+        non_distinguishable_sorted.sort();
 
-                if !distinguishable_pairs.contains(&(state1.clone(), state2.clone())) {
-                    // Iterator is not advanced when merging, because the list of states shrinks by one, so the new state at the current index must also be checked
-                    // The iterator of the for loop cannot be modified, which is why the while loop is needed
-                    println!("Mergeable: {} and {}", state1, state2);
-                    self.merge_states(state1.clone().as_str(), state2.clone().as_str());
-                } else {
-                    // Advance iterator if no merge was done
-                    j += 1
+        // Process each non-distinguishable state pair
+        for (state1, state2) in non_distinguishable_sorted {
+            let merged_state = state1.clone() + &state2;
+            new_states.insert(merged_state.clone());
+            state_mapping.insert(state1.clone(), merged_state.clone());
+            state_mapping.insert(state2.clone(), merged_state.clone());
+            if self.final_states.contains(&state1) && self.final_states.contains(&state2) {
+                new_final_states.insert(merged_state.clone());
+            }
+            if state1 == self.start_state || state2 == self.start_state {
+                new_start_state = merged_state.clone();
+            }
+        }
+
+        // Process remaining states
+        for state in &self.states {
+            if !state_mapping.contains_key(state) {
+                state_mapping.insert(state.clone(), state.clone());
+                new_states.insert(state.clone());
+                if self.final_states.contains(state) {
+                    new_final_states.insert(state.clone());
+                }
+                if state == &self.start_state {
+                    new_start_state = state.clone();
                 }
             }
         }
-    }
 
-    fn merge_states(&mut self, state1: &str, state2: &str) {
-        // Remove state2 from the list of states
-        self.states.retain(|state| state != state2);
-
-        // Remove state2 from the list of final states
-        self.final_states.retain(|state| state != state2);
-
-        // Update transitions to use state1 instead of state2
-        // Duplicate transitions can be eliminated by using a HashSet 
-        let updated_transitions: HashSet<(String, String, String)> = self
-            .transitions
-            .iter()
-            .map(|(from_state, symbol, to_state)| {
-                // If A == B, then there are 3 cases which need to be accounted for:
-                // B->C then B becomes A
-                // C->B then B becomes A
-                // A->C then A doesn't change
-                if from_state == state2 {
-                    (state1.to_string(), symbol.clone(), to_state.clone())
-                } else if to_state == state2 {
-                    (from_state.clone(), symbol.clone(), state1.to_string())
-                } else {
-                    (from_state.clone(), symbol.clone(), to_state.clone())
-                }
-            })
-            .collect();
-        self.transitions = updated_transitions;
-
-        // Update start state if it was state2
-        if self.start_state == state2 {
-            self.start_state = state1.to_string();
+        // Update transitions with the merged states and sort them
+        for (state, symbol, next_state) in &self.transitions {
+            let state = state_mapping.get(state).unwrap();
+            let next_state = state_mapping.get(next_state).unwrap();
+            let new_transition = (state.clone(), symbol.clone(), next_state.clone());
+            new_transitions.insert(new_transition);
         }
+
+        // Sort the new states and transitions
+        let mut new_states_vec: Vec<String> = new_states.iter().cloned().collect();
+        new_states_vec.sort();
+
+        // Note: The transitions sort somehow is not working properly, in every run it gives a different result, and I don't know why.
+        let mut sorted_transitions: Vec<(String, String, String)> = new_transitions.iter().cloned().collect();
+        sorted_transitions.sort();
+
+        // Update the DFA
+        self.nr_of_states = new_states.len();
+        self.states = new_states_vec;
+        self.final_states = new_final_states.iter().cloned().collect();
+        self.start_state = new_start_state;
+
+        // Replace the old transitions with the updated transitions
+        self.transitions = sorted_transitions.iter().cloned().collect();
     }
 
     fn get_state_transition(&self, state: &str, symbol: &str) -> (String, String, String) {
