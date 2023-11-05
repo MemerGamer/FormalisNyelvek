@@ -2,6 +2,15 @@ use std::fs::File;
 use std::collections::{HashMap, HashSet};
 use std::io::{BufRead, BufReader};
 
+/**
+    Struct to represent a Deterministic Final Automata
+    * nr_of_states The number of states
+    * states The states
+    * alphabet The alphabet
+    * start_state The start state
+    * final_states The final states
+    * transitions The transitions
+ **/
 pub struct DeterministicFinalAutomata {
     nr_of_states: usize,
     states: Vec<String>,
@@ -11,7 +20,19 @@ pub struct DeterministicFinalAutomata {
     transitions: HashSet<(String, String, String)>,
 }
 
+/**
+    Implementation of DeterministicFinalAutomata
+ **/
 impl DeterministicFinalAutomata {
+    /**
+        Function to create a new instance of DeterministicFinalAutomata
+        * @param nr_of_states The number of states
+        * @param states The states
+        * @param alphabet The alphabet
+        * @param start_state The start state
+        * @param final_states The final states
+        * @returns An instance of DeterministicFinalAutomata
+     **/
     pub fn new(
         nr_of_states: usize,
         states: Vec<String>,
@@ -29,6 +50,10 @@ impl DeterministicFinalAutomata {
         }
     }
 
+    /**
+        Function to print the DFA
+        * @param self The DFA to print
+     **/
     pub fn print_automata(&self) {
         println!("The deterministic final automata:");
         println!("Number of states: {}", self.nr_of_states);
@@ -42,10 +67,20 @@ impl DeterministicFinalAutomata {
         }
     }
 
+    /**
+        Function to add a transition to the DFA
+        * @param from_state The state to transition from
+        * @param symbols The symbols to transition on
+        * @param to_state The state to transition to
+     **/
     pub fn add_transition(&mut self, from_state: &str, symbols: &str, to_state: &str) {
         self.transitions.insert((from_state.to_string(), symbols.to_string(), to_state.to_string()));
     }
 
+    /**
+        Function to minimize the DFA
+        * @param self The DFA to minimize
+     **/
     pub fn minimize(&mut self) {
         // Step 1: Mark distinguishable state pairs (p, q) where p ∈ F and q ∉ F, or vice versa
         println!("Working on step 1...");
@@ -173,6 +208,13 @@ impl DeterministicFinalAutomata {
         self.transitions = sorted_transitions.iter().cloned().collect();
     }
 
+    /**
+        Function to get the transition for a given state and symbol
+
+        * @param state The state to transition from
+        * @param symbol The symbol to transition on
+        * @returns The transition for the given state and symbol
+     **/
     fn get_state_transition(&self, state: &str, symbol: &str) -> (String, String, String) {
         // Find and return transition for the given state and symbol
         self.transitions
@@ -184,7 +226,21 @@ impl DeterministicFinalAutomata {
     }
 }
 
-// Function to read automata from a file and create an instance of DeterministicFinalAutomata
+/**
+    Function to read automata from a file and create an instance of DeterministicFinalAutomata
+    * @param filename The name of the file to read from
+    * @returns An instance of DeterministicFinalAutomata
+
+    * The format of the file should be the following:
+    * The first line should contain the number of states
+    * The second line should contain the states separated by spaces
+    * The third line should contain the alphabet separated by spaces
+    * The fourth line should contain the start state
+    * The fifth line should contain the final states separated by spaces
+    * The rest of the lines should contain the transitions in the following format:
+    * from_state symbol to_state
+
+ **/
 pub fn read_automata(filename: &str) -> DeterministicFinalAutomata {
     let file = File::open(filename).expect("File not found!");
     let reader = BufReader::new(file);
@@ -229,4 +285,72 @@ pub fn read_automata(filename: &str) -> DeterministicFinalAutomata {
     }
 
     dfa
+}
+
+
+
+/**
+    Checks if two DFAs are equivalent
+
+    * @param dfa1 The first DFA
+    * @param dfa2 The second DFA
+    * @returns true if the two DFAs are equivalent, false otherwise
+ **/
+pub fn check_equivalence(dfa1: &DeterministicFinalAutomata, dfa2: &DeterministicFinalAutomata) -> bool {
+    // If they don't use the same alphabet, they are not equivalent
+    if dfa1.alphabet != dfa2.alphabet {
+        return false;
+    }
+
+    // They can have different numbers of states, different states, and different transitions and still be equivalent
+    // The only thing that matters is if they accept the same language
+
+    // We can use a queue to store the states that we have to check
+    // We start with the start states of the two DFAs
+    let mut state_pair = (dfa1.start_state.clone(), dfa2.start_state.clone());
+
+    // We store the pairs of states that we have already checked
+    let mut checked_states: HashSet<(String, String)> = HashSet::new();
+
+    // We store the pairs of states that we have to check
+    let mut states_to_check: HashSet<(String, String)> = HashSet::new();
+    states_to_check.insert(state_pair.clone());
+
+    // We check the pairs of states until we have no more pairs to check
+    while !states_to_check.is_empty() {
+        // We get the first pair of states from the queue
+        state_pair = states_to_check.iter().next().unwrap().clone();
+        states_to_check.remove(&state_pair);
+
+
+        // We check if the pair of states is final or not
+        // If one of the states is final and the other is not, the two DFAs are not equivalent
+        if (dfa1.final_states.contains(&state_pair.0) && !dfa2.final_states.contains(&state_pair.1))
+            || (!dfa1.final_states.contains(&state_pair.0) && dfa2.final_states.contains(&state_pair.1))
+        {
+            return false;
+        }
+
+        // We check if we have already checked the pair of states
+        if checked_states.contains(&state_pair) {
+            continue;
+        }
+
+        // We add the pair of states to the set of checked states
+        checked_states.insert(state_pair.clone());
+
+        // We check the transitions from the two states
+        for symbol in &dfa1.alphabet {
+            // We get the next state from the first DFA
+            let next_state1 = dfa1.get_state_transition(&state_pair.0, symbol).2.clone();
+
+            // We get the next state from the second DFA
+            let next_state2 = dfa2.get_state_transition(&state_pair.1, symbol).2.clone();
+
+            states_to_check.insert((next_state1, next_state2));
+        }
+    }
+
+    // If we have checked all the pairs of states and we haven't found a pair of states that is not equivalent, the two DFAs are equivalent
+    true
 }
