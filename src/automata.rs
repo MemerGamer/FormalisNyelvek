@@ -42,8 +42,8 @@ impl DeterministicFinalAutomata {
         }
     }
 
-    pub fn add_transition(&mut self, from_state: String, symbols: String, to_state: String) {
-        self.transitions.insert((from_state, symbols, to_state));
+    pub fn add_transition(&mut self, from_state: &str, symbols: &str, to_state: &str) {
+        self.transitions.insert((from_state.to_string(), symbols.to_string(), to_state.to_string()));
     }
 
     pub fn minimize(&mut self) {
@@ -225,7 +225,7 @@ pub fn read_automata(filename: &str) -> DeterministicFinalAutomata {
     let mut dfa = DeterministicFinalAutomata::new(nr_of_states, states, alphabet, start_state, final_states);
 
     for transition in transitions {
-        dfa.add_transition(transition.0, transition.1, transition.2);
+        dfa.add_transition(&transition.0, &transition.1, &transition.2);
     }
 
     dfa
