@@ -4,6 +4,7 @@ Informatika III.
 */
 
 mod automata;
+mod regular_expressions;
 
 fn test_minimization_algorithm() {
     // Reading automata from resources/dfa_1.txt
@@ -42,12 +43,23 @@ fn test_equivalence_check(){
 
 }
 
+fn test_regular_expressions(){
+    let filename_1 = "src/resources/2022-10-15-10.18.37.log";
+    if let Err(err) = regular_expressions::process_log_file(filename_1) {
+        println!("Error: {}", err);
+    }
+}
+
 fn main() {
     println!("1.) Testing the minimization algorithm");
     test_minimization_algorithm();
     println!();
     println!("2.) Testing the equivalence check algorithm");
     test_equivalence_check();
+
+    println!();
+    println!("3.) Testing the regular expressions");
+    test_regular_expressions();
 }
 
 
