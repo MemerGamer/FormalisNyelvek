@@ -31,7 +31,7 @@ pub fn process_log_file(file_path: &str) -> io::Result<()> {
     let mut count10_18_51_221 = 0;
 
     // Task 6
-    let pattern6 = Regex::new(r".* E ").unwrap();
+    let pattern6 = Regex::new(r"\bE\b").unwrap();
     let mut count_e = 0;
 
     // Task 7
