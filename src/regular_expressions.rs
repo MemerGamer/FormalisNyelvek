@@ -2,88 +2,192 @@ use regex::Regex;
 use std::fs::{File, OpenOptions};
 use std::io::{self, BufRead, BufReader, Write};
 
-
 pub fn process_log_file(file_path: &str) -> io::Result<()> {
     let file = File::open(file_path)?;
     let reader = BufReader::new(file);
 
-    // Open or create the processed.txt file
-    let mut processed_file = OpenOptions::new()
-        .write(true)
-        .create(true)
-        .append(true)
-        .open("processed.txt")?;
+    // Read the content of the log file into a String
+    let logcat: String = reader.lines().collect::<Result<Vec<_>, _>>()?.join("\n");
 
+    // I.
     // Task 1
-    let re_task1 = Regex::new(r"(\d{2}-10-15 \d{2}:\d{2}:\d{2}\.\d{3} \d+ \d+ [IDVEFAW])").unwrap();
+    let pattern1 = Regex::new(r"^10-15").unwrap();
+    let mut count10_15 = 0;
 
     // Task 2
-    let re_task2 = Regex::new(r"(\d{2}-10-15 10:18:51\.\d{3} \d+ \d+ [IDVEFAW])").unwrap();
+    let pattern2 = Regex::new(r"^10-15 10:18:51").unwrap();
+    let mut count10_15_10_18_51 = 0;
 
     // Task 3
-    let re_task3 = Regex::new(r"(\d{2}-\d{2}-\d{2} \d{2}:\d{2}:51\.\d{3} \d+ \d+ [IDVEFAW])").unwrap();
+    let pattern3 = Regex::new(r"^[0-9-]+ [0-9:]+:51").unwrap();
+    let mut count51 = 0;
 
     // Task 4
-    let re_task4 = Regex::new(r"([IDVEFAW].*lowmemorykiller.*)").unwrap();
+    let pattern4 = Regex::new(r"lowmemorykiller").unwrap();
+    let mut count_low_memory_killer = 0;
 
     // Task 5
-    let re_task5 = Regex::new(r"(\d{2}-\d{2}-\d{2} 10:18:51\.\d{3} \d+ 221 [IDVEFAW])").unwrap();
+    let pattern5 = Regex::new(r"^10-15 10:18:51.* 221 ").unwrap();
+    let mut count10_18_51_221 = 0;
 
     // Task 6
-    let re_task6 = Regex::new(r"(\d{2}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3} \d+ \d+ E [^:]+: .*)").unwrap();
+    let pattern6 = Regex::new(r".* E ").unwrap();
+    let mut count_e = 0;
 
     // Task 7
-    let re_task7 = Regex::new(r"(\d{2}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3} \d+ \d+ W PackageManager: .*)").unwrap();
+    let pattern7 = Regex::new(r".* W PackageManager.* ").unwrap();
+    let mut count_package_manager_w = 0;
 
     // Task 8
-    let re_task8 = Regex::new(r"(\d{2}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3} \d+ \d+ D [^:]+: .*)").unwrap();
+    let pattern8 = Regex::new(r".* D .*ExoPlayer.* ").unwrap();
+    let mut count_exo_player_d = 0;
 
     // Task 9
-    let re_task9 = Regex::new(r"(\d{2}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3} \d+ \d+ [EW] [^:]+\.java: .*)").unwrap();
+    let pattern9 = Regex::new(r".* [EW].*\.java:").unwrap();
+    let mut count_ew_java = 0;
 
     // Task 10
-    let re_task10 = Regex::new(r"(\d{2}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3} \d+ \d+ [IDVEFAW] [^:]+: .*Thread.*)").unwrap();
+    let pattern10 = Regex::new(r".* [^:]+: .*Thread.*").unwrap();
+    let mut count_thread = 0;
 
-    // Additional tasks
-    let re_stack_trace = Regex::new(r"(\d{2}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3} \d+ \d+ E [^:]+: .*)").unwrap();
-    let re_process_id = Regex::new(r"\d{2}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3} (\d+) \d+ [IDVEFAW]").unwrap();
+    // Counting
+    for line in logcat.lines() {
+        if pattern1.is_match(line) {
+            count10_15 += 1;
+        }
 
-    let mut process_errors_count = std::collections::HashMap::new();
+        if pattern2.is_match(line) {
+            count10_15_10_18_51 += 1;
+        }
 
-    // Process each line in the log file
-    for line in reader.lines() {
-        let line = line?;
-        if re_task6.is_match(&line) {
-            writeln!(processed_file, "Task 6: {}", line)?;
+        if pattern3.is_match(line) {
+            count51 += 1;
+        }
 
-            // Additional Task 1: Print the origin of lines with errors (StackTrace)
-            if let Some(captures) = re_stack_trace.captures(&line) {
-                writeln!(processed_file, "StackTrace: {}", captures.get(1).unwrap().as_str())?;
-            }
+        if pattern4.is_match(line) {
+            count_low_memory_killer += 1;
+        }
 
-            // Additional Task 2: Print distinct process IDs
-            if let Some(captures) = re_process_id.captures(&line) {
-                let process_id = captures.get(1).unwrap().as_str();
-                writeln!(processed_file, "Distinct Process ID: {}", process_id)?;
+        if pattern5.is_match(line) {
+            count10_18_51_221 += 1;
+        }
 
-                // Additional Task 3: Count the process errors
-                let count = process_errors_count.entry(process_id.to_string()).or_insert(0);
-                *count += 1;
-            }
+        if pattern6.is_match(line) {
+            count_e += 1;
+        }
+
+        if pattern7.is_match(line) {
+            count_package_manager_w += 1;
+        }
+
+        if pattern8.is_match(line) {
+            count_exo_player_d += 1;
+        }
+
+        if pattern9.is_match(line) {
+            count_ew_java += 1;
+        }
+
+        if pattern10.is_match(line) {
+            count_thread += 1;
         }
     }
 
-    // Additional Task 4: Print the process with the most errors
-    if let Some((process_id, count)) = process_errors_count.iter().max_by(|&(_, a), &(_, b)| a.cmp(b)) {
-        writeln!(processed_file, "Process with the most errors: {} ({} errors)", process_id, count)?;
-    }
+    // Writing the results to the screen
+    println!("Number of lines made on 10-15: {}", count10_15);
+    println!("Number of lines made on 10-15 10:18:51: {}", count10_15_10_18_51);
+    println!("Number of lines made on 51 seconds: {}", count51);
+    println!("Number of lines containing lowmemorykiller: {}", count_low_memory_killer);
+    println!("Number of lines made on 10-15 10:18:51 221: {}", count10_18_51_221);
+    println!("Number of lines containing E: {}", count_e);
+    println!("Number of lines containing PackageManager W: {}", count_package_manager_w);
+    println!("Number of lines containing ExoPlayer D: {}", count_exo_player_d);
+    println!("Number of lines containing E or W and .java: {}", count_ew_java);
+    println!("Number of lines containing Thread: {}", count_thread);
 
-    // Additional Task 5: Print errors on the main thread
-    for (process_id, count) in process_errors_count.iter() {
-        if process_id == "thread_id_here" {
-            writeln!(processed_file, "Errors on the main thread: {} ({} errors)", process_id, count)?;
+    // Writing the results to the processed.txt file
+    let mut processed_file = OpenOptions::new()
+        .write(true)
+        .append(true)
+        .open("processed.txt")?;
+    writeln!(processed_file, "Number of lines made on 10-15: {}", count10_15)?;
+    writeln!(processed_file, "Number of lines made on 10-15 10:18:51: {}", count10_15_10_18_51)?;
+    writeln!(processed_file, "Number of lines made on 51 seconds: {}", count51)?;
+    writeln!(processed_file, "Number of lines containing lowmemorykiller: {}", count_low_memory_killer)?;
+    writeln!(processed_file, "Number of lines made on 10-15 10:18:51 221: {}", count10_18_51_221)?;
+    writeln!(processed_file, "Number of lines containing E: {}", count_e)?;
+    writeln!(processed_file, "Number of lines containing PackageManager W: {}", count_package_manager_w)?;
+    writeln!(processed_file, "Number of lines containing ExoPlayer D: {}", count_exo_player_d)?;
+    writeln!(processed_file, "Number of lines containing E or W and .java: {}", count_ew_java)?;
+    writeln!(processed_file, "Number of lines containing Thread: {}", count_thread)?;
+
+
+    // II.
+    let pattern_ex = Regex::new(r"([0-9-]+ [0-9:.]+) +([0-9]+) +([0-9]+) ([IDVEFAW]) ([^:]+): (.*)").unwrap();
+
+    // Task 1
+    let mut stack_traces = Vec::new();
+    let mut current_stack_trace = String::new();
+    let mut inside_stack_trace = false;
+
+    for line in logcat.lines() {
+        if let Some(captures) = pattern_ex.captures(line) {
+            if captures[4].eq("E") {
+                inside_stack_trace = true;
+                current_stack_trace.push_str(&format!("{}:\n→ {}\n", captures[6].trim(), captures[6].trim()));
+            }
+        } else if inside_stack_trace && !line.starts_with(' ') {
+            inside_stack_trace = false;
+            stack_traces.push(current_stack_trace.clone());
+            current_stack_trace.clear();
         }
     }
+
+    for stack_trace in stack_traces {
+        println!("{}", stack_trace);
+        writeln!(processed_file, "{}", stack_trace)?;
+    }
+
+    // Task 2
+    let unique_process_ids: Vec<_> = pattern_ex.captures_iter(logcat.as_str())
+        .map(|cap| cap[3].to_string())
+        .collect();
+    let unique_process_ids: Vec<_> = unique_process_ids.into_iter().collect();
+    println!("Unique process ids: {:?}", unique_process_ids);
+    writeln!(processed_file, "Unique process ids: {:?}", unique_process_ids)?;
+
+    // Task 3
+    let error_processes: Vec<_> = pattern_ex.captures_iter(logcat.as_str())
+        .filter(|cap| cap[4].eq("E"))
+        .map(|cap| cap[3].to_string())
+        .collect();
+    let most_common_error_process = error_processes.iter()
+        .max_by(|&x, &y| error_processes.iter().filter(|&e| e.clone() == x.clone()).count()
+            .cmp(&error_processes.iter().filter(|&e| e.clone() == y.clone()).count()))
+        .unwrap();
+    println!("Most common error process: {}", most_common_error_process);
+    writeln!(processed_file, "Most common error process: {}", most_common_error_process)?;
+
+    // Task 4
+    let main_thread_errors: Vec<_> = pattern_ex.captures_iter(logcat.as_str())
+        .filter(|cap| cap[3] == cap[4] && cap[4].eq( "E"))
+        .map(|cap| format!("{}: {}", cap[3].to_string(), cap[0].to_string()))
+        .collect();
+    println!("Main thread errors:");
+    writeln!(processed_file, "Main thread errors:")?;
+    for main_thread_error in main_thread_errors {
+        println!("{}", main_thread_error);
+        writeln!(processed_file, "{}", main_thread_error)?;
+    }
+
+
+
+
 
     Ok(())
+}
+
+fn main() {
+    let file_path = std::env::args().nth(1).expect("No filename given!");
+    process_log_file(&file_path).expect("Error processing log file");
 }
