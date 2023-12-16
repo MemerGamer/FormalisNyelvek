@@ -5,6 +5,7 @@ Informatika III.
 
 mod automata;
 mod regular_expressions;
+mod stack;
 
 fn test_minimization_algorithm() {
     // Reading automata from resources/dfa_1.txt
@@ -50,16 +51,53 @@ fn test_regular_expressions(){
     }
 }
 
-fn main() {
-    println!("1.) Testing the minimization algorithm");
-    test_minimization_algorithm();
-    println!();
-    println!("2.) Testing the equivalence check algorithm");
-    test_equivalence_check();
+fn test_stack_automata(){
+    let filename_1 = "src/resources/dfa_7.txt";
+    let word = String::from("aaabbb");
+    let mut automata = stack::read_automata(filename_1);
+    automata.print_automata();
 
-    println!();
-    println!("3.) Testing the regular expressions");
-    test_regular_expressions();
+    println!("Processing the word: {}", word);
+    let result = automata.process_word(&word);
+    println!("The word is accepted: {}", result);
+}
+fn main() {
+    loop {
+        println!("Which excercise would you like to run? [0(exit), 1 (dfa minimization), 2 (equivalence test), 3 (regex), 4 (stack-automata)]:");
+        let mut input = String::new();
+        std::io::stdin().read_line(&mut input).expect("Failed to read line");
+        let input: u32 = match input.trim().parse() {
+            Ok(num) => num,
+            Err(_) => continue,
+        };
+        match input {
+            0 => {
+                println!("Exiting...");
+                break;
+            },
+            1 => {
+                println!("1. Testing the minimization algorithm");
+                test_minimization_algorithm();
+            },
+            2 => {
+                println!("2. Testing the equivalence check algorithm");
+                test_equivalence_check();
+            },
+            3 => {
+                println!("3. Testing the regular expressions");
+                test_regular_expressions();
+            },
+            4 => {
+                println!("4. Testing the stack automata");
+                test_stack_automata();
+
+            },
+            _ => {
+                println!("Invalid input, please try again");
+                continue;
+            }
+        }
+    }
 }
 
 
