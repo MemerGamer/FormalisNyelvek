@@ -179,15 +179,5 @@ pub fn process_log_file(file_path: &str) -> io::Result<()> {
         println!("{}", main_thread_error);
         writeln!(processed_file, "{}", main_thread_error)?;
     }
-
-
-
-
-
     Ok(())
-}
-
-fn main() {
-    let file_path = std::env::args().nth(1).expect("No filename given!");
-    process_log_file(&file_path).expect("Error processing log file");
 }
